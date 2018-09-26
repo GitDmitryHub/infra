@@ -1,0 +1,63 @@
+## Setup and configure ruby things for reddit app
+- name: "Reddit App: Configure app environment"
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: Install ruby and rubygems and required packages
+    apt: "name={{ item }} state=present"
+    with_items:
+      - ruby-full
+      - ruby-dev
+      - build-essential
+  - name: Install Ruby bundler
+    gem:
+      name: bundler
+      state: present
+      user_install: no
+
+# Deploy reddit app
+- name: "Reddit App: Deploy application"
+  hosts: all
+  gather_facts: no
+  become: true
+  vars: 
+    pumaunit: |
+      [Unit]
+      Description=Puma HTTP Server
+      After=network.target
+      
+      [Service]
+      EnvironmentFile=-/home/appuser/.env
+      Type=simple
+      User=appuser
+      WorkingDirectory=/home/appuser/reddit-app
+      ExecStart=/bin/bash -lc 'puma'
+      Restart=always
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  tasks:
+  - name: git clone
+    git:
+      repo: 'https://github.com/Artemmkin/reddit'
+      dest:  /home/appuser/reddit-app
+  - name: install gems
+    bundler:
+      state: present
+      gemfile: /home/appuser/reddit-app/Gemfile
+  - name: Copy puma unit using the 'content' for inline data
+    copy:
+      content: |
+        {{ pumaunit }}
+      dest: /etc/systemd/system/puma.service
+  - name: Start service puma if not running
+    service:
+      name: puma
+      state: started
+  - name: enable service puma and ensure it is not masked
+    systemd:
+      name: puma
+      enabled: yes
+      masked: no

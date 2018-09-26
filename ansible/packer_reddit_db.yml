@@ -1,0 +1,27 @@
+# Setup and configure mongodb for reddit app
+- name: "Reddit App: Install mongodb"
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: Add a key from a file on the Ansible server.
+    apt_key:
+      keyserver: hkp://keyserver.ubuntu.com:80
+      id: EA312927
+  - name: add mongo reposo
+    apt_repository:
+      repo: deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse
+      state: present
+  - name: Install mongodb package
+    become: true
+    become_method: sudo
+    apt: "name=mongodb-org force=yes"
+  - name: Start service mongo if not running
+    service:
+      name: mongod
+      state: started
+  - name: enable service mongod and ensure it is not masked
+    systemd:
+      name: mongod
+      enabled: yes
+      masked: no
